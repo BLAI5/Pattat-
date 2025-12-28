@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PATATE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'primary': '#4f46e5',
+                        'primary-dark': '#4338ca',
+                        'secondary': '#facc15',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body { -webkit-tap-highlight-color: transparent; }
+        .card { background-color: white; padding: 1.25rem; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb; }
+        .btn-press { transition: transform 0.05s; }
+        .btn-press:active { transform: scale(0.96); }
+        input { font-size: 16px; } /* Prevents iOS zoom on focus */
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-900 pb-20">
+
+    <div id="app" class="max-w-md mx-auto p-4 space-y-5">
+        <h1 class="text-4xl font-black text-center text-primary tracking-tight uppercase">PATATE</h1>
+
+        <!-- Winning Target -->
+        <div class="card flex items-center justify-between gap-3">
+            <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wide whitespace-nowrap">Target 🎯</h2>
+            <div class="flex gap-2 w-full max-w-[200px]">
+                <input type="number" id="targetScoreInput" placeholder="No Limit" class="w-full p-2 bg-gray-50 border rounded-lg text-center font-bold" onchange="saveTargetScore()">
+            </div>
+        </div>
+
+        <!-- Add Player -->
+        <div class="flex gap-2">
+            <input type="text" id="playerName" placeholder="Player Name..." class="flex-1 p-3 rounded-xl border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary" onkeydown="if(event.key==='Enter') addPlayer()">
+            <button onclick="addPlayer()" class="bg-primary text-white font-bold px-5 rounded-xl btn-press shadow-sm hover:bg-primary-dark">Add</button>
+        </div>
+
+        <!-- Scoreboard -->
+        <div id="scoreboard-container" class="space-y-3">
+            <!-- Players will be injected here via JS -->
+        </div>
+
+        <p id="empty-state" class="text-center text-gray-400 py-10">No players yet.<br>Add someone to start!</p>
+
+        <!-- Global Actions -->
+        <div class="pt-8 border-t border-gray-200 space-y-3">
+            <button onclick="openModal('confirm-reset-modal')" class="w-full py-3 text-orange-600 font-bold bg-orange-50 rounded-xl hover:bg-orange-100 btn-press">
+                Reset Scores (Keep Names)
+            </button>
+            <button onclick="openModal('confirm-new-game-modal')" class="w-full py-3 text-red-600 font-bold border-2 border-red-100 rounded-xl hover:bg-red-50 btn-press">
+                Start New Game (Clear All)
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: Add Points -->
+    <div id="score-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden transition-opacity">
+        <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-2xl transform transition-all scale-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Add Points</h3>
+                <span id="modal-player-name" class="text-sm font-semibold text-primary bg-indigo-50 px-2 py-1 rounded"></span>
+            </div>
+            
+            <input type="number" id="modalScoreValue" placeholder="0" class="w-full text-center text-5xl font-black h-24 border-2 border-indigo-100 rounded-xl focus:border-primary focus:outline-none mb-6 text-gray-800">
+            
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeModal('score-modal')" class="py-3 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 btn-press">Cancel</button>
+                <button onclick="submitAddScore()" class="py-3 font-bold text-white bg-primary rounded-xl hover:bg-primary-dark btn-press">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Edit Total -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white w-full max-w-sm p-6 rounded-2xl shadow-2xl">
+            <h3 class="text-xl font-bold text-gray-800 mb-1">Edit Total Score</h3>
+            <p class="text-sm text-gray-500 mb-4">Set the exact score manually.</p>
+            <input type="number" id="editScoreValue" class="w-full text-center text-4xl font-black h-20 border-2 border-gray-200 rounded-xl focus:border-gray-400 focus:outline-none mb-6">
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closeModal('edit-modal')" class="py-3 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 btn-press">Cancel</button>
+                <button onclick="submitEditScore()" class="py-3 font-bold text-white bg-gray-800 rounded-xl hover:bg-gray-900 btn-press">Update</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirm New Game -->
+    <div id="confirm-new-game-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white w-full max-w-xs p-6 rounded-2xl text-center">
+            <div class="text-4xl mb-3">🧨</div>
+            <h3 class="text-xl font-bold mb-2">Wipe Everything?</h3>
+            <p class="text-gray-500 mb-6 text-sm">This deletes all players and settings permanently.</p>
+            <div class="space-y-2">
+                <button onclick="handleNewGame()" class="w-full py-3 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 btn-press">Yes, New Game</button>
+                <button onclick="closeModal('confirm-new-game-modal')" class="w-full py-3 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 btn-press">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Confirm Reset -->
+    <div id="confirm-reset-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white w-full max-w-xs p-6 rounded-2xl text-center">
+            <h3 class="text-xl font-bold mb-2">Reset to Zero?</h3>
+            <p class="text-gray-500 mb-6 text-sm">Players will stay, but scores go to 0.</p>
+            <div class="space-y-2">
+                <button onclick="handleResetScores()" class="w-full py-3 font-bold text-white bg-orange-500 rounded-xl hover:bg-orange-600 btn-press">Yes, Reset Scores</button>
+                <button onclick="closeModal('confirm-reset-modal')" class="w-full py-3 font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 btn-press">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let players = [];
+        let targetScore = null;
+        let activePlayerId = null;
+
+        // DOM Elements
+        const playersListEl = document.getElementById('scoreboard-container');
+        const emptyStateEl = document.getElementById('empty-state');
+        const targetInputEl = document.getElementById('targetScoreInput');
+
+        // --- Core Functions ---
+
+        function loadData() {
+            try {
+                const pData = localStorage.getItem('patattPlayers');
+                players = pData ? JSON.parse(pData) : [];
+                
+                const tData = localStorage.getItem('targetScore');
+                targetScore = tData ? parseInt(tData) : null;
+                
+                if (targetScore) targetInputEl.value = targetScore;
+            } catch (e) {
+                console.error("Error loading data", e);
+                players = [];
+            }
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('patattPlayers', JSON.stringify(players));
+            localStorage.setItem('targetScore', targetScore || '');
+            render();
+        }
+
+        function render() {
+            playersListEl.innerHTML = '';
+            
+            if (players.length === 0) {
+                emptyStateEl.classList.remove('hidden');
+            } else {
+                emptyStateEl.classList.add('hidden');
+                
+                // Sort: Highest score first
+                const sorted = [...players].sort((a, b) => b.totalScore - a.totalScore);
+                
+                sorted.forEach((p, index) => {
+                    const isWinner = targetScore && p.totalScore >= targetScore;
+                    const card = document.createElement('div');
+                    card.className = `flex items-center justify-between p-4 bg-white rounded-2xl border-2 transition-all shadow-sm ${isWinner ? 'border-green-400 bg-green-50 shadow-green-100' : 'border-white hover:border-gray-100'}`;
+                    
+                    card.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <button class="delete-btn text-gray-300 hover:text-red-500 p-2 -ml-2 rounded-full transition-colors" title="Remove Player">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                            <div class="flex flex-col min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-black text-gray-400 font-mono">#${index + 1}</span>
+                                    <span class="font-bold text-lg truncate text-gray-800">
+                                        ${escapeHtml(p.name)}
+                                    </span>
+                                    ${index === 0 && p.totalScore > 0 ? '👑' : ''} 
+                                </div>
+                                ${isWinner ? '<span class="text-xs font-bold text-green-700 bg-green-200 px-2 py-0.5 rounded-full w-fit animate-pulse mt-1">WINNER!</span>' : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-3 shrink-0">
+                            <div class="add-score-trigger text-right cursor-pointer bg-gray-50 hover:bg-indigo-50 px-4 py-2 rounded-xl transition-colors select-none active:scale-95 transform duration-75">
+                                <div class="text-3xl font-black text-primary leading-none">${p.totalScore}</div>
+                                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">Tap to Add</div>
+                            </div>
+                            
+                            <button class="edit-btn p-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors" title="Edit Total">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                        </div>
+                    `;
+
+                    card.querySelector('.delete-btn').onclick = () => deletePlayer(p.id);
+                    card.querySelector('.add-score-trigger').onclick = () => openAddScore(p.id, p.name);
+                    card.querySelector('.edit-btn').onclick = () => openEditScore(p.id, p.name, p.totalScore);
+
+                    playersListEl.appendChild(card);
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        window.saveTargetScore = () => {
+            const val = parseInt(targetInputEl.value);
+            targetScore = isNaN(val) ? null : val;
+            saveData();
+        };
+
+        window.addPlayer = () => {
+            const input = document.getElementById('playerName');
+            const name = input.value.trim();
+            if (!name) return;
+            
+            players.push({
+                id: crypto.randomUUID(),
+                name: name,
+                totalScore: 0
+            });
+            
+            input.value = '';
+            saveData();
+        };
+
+        window.deletePlayer = (id) => {
+            if(confirm("Remove this player?")) {
+                players = players.filter(p => p.id !== id);
+                saveData();
+            }
+        };
+
+        window.openModal = (id) => {
+            document.getElementById(id).classList.remove('hidden');
+        };
+
+        window.closeModal = (id) => {
+            document.getElementById(id).classList.add('hidden');
+        };
+
+        window.openAddScore = (id, name) => {
+            activePlayerId = id;
+            document.getElementById('modal-player-name').textContent = name;
+            const input = document.getElementById('modalScoreValue');
+            input.value = '';
+            
+            openModal('score-modal');
+            
+            setTimeout(() => {
+                input.focus();
+            }, 50);
+        };
+
+        window.submitAddScore = () => {
+            const input = document.getElementById('modalScoreValue');
+            const val = input.value === '' ? 0 : parseFloat(input.value); 
+            
+            if (!isNaN(val) && val !== 0) {
+                const p = players.find(p => p.id === activePlayerId);
+                if (p) {
+                    p.totalScore = (p.totalScore || 0) + val;
+                    saveData();
+                }
+            }
+            closeModal('score-modal');
+        };
+
+        window.openEditScore = (id, name, currentScore) => {
+            activePlayerId = id;
+            const input = document.getElementById('editScoreValue');
+            input.value = currentScore;
+            
+            openModal('edit-modal');
+            setTimeout(() => {
+                input.focus();
+                input.select();
+            }, 50);
+        };
+
+        window.submitEditScore = () => {
+            const input = document.getElementById('editScoreValue');
+            const val = parseInt(input.value);
+            
+            if (!isNaN(val)) {
+                const p = players.find(p => p.id === activePlayerId);
+                if (p) {
+                    p.totalScore = val;
+                    saveData();
+                }
+            }
+            closeModal('edit-modal');
+        };
+
+        window.handleResetScores = () => {
+            players.forEach(p => p.totalScore = 0);
+            closeModal('confirm-reset-modal');
+            saveData();
+        };
+
+        window.handleNewGame = () => {
+            players = [];
+            targetScore = null;
+            targetInputEl.value = '';
+            closeModal('confirm-new-game-modal');
+            saveData();
+        };
+        
+        document.getElementById('modalScoreValue').onkeydown = (e) => {
+            if(e.key === 'Enter') { e.preventDefault(); submitAddScore(); }
+        };
+        document.getElementById('editScoreValue').onkeydown = (e) => {
+            if(e.key === 'Enter') { e.preventDefault(); submitEditScore(); }
+        };
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
